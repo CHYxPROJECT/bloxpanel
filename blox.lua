@@ -1,6 +1,6 @@
 -- ============================================================
 --   BLOX PANEL OBSIDIAN EDITION  ·  by NanaChan
---   Blox Fruits  ·  Compatible with Delta Executor
+--   Blox Fruits  ·  Compatible with Delta Executorr
 --   PREMIUM EDITION - PAID SCRIPT
 -- ============================================================
 
