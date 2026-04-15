@@ -1,11 +1,11 @@
 -- ============================================================
 --   BLOX PANEL  ·  by NanaChan
 --   Blox Fruits  ·  Compatible with Delta Executor
---   VERSION: 5.0 (With Casanova Silent Aim)
+--   VERSION: 4.0 (Fixed Silent Aim + Complete Features)
 -- ============================================================
 
 -- ============================================================
---  [0] INTRO
+--  [0] INTRO (Clean & Fast)
 -- ============================================================
 local function RunIntro()
     local TS2 = game:GetService("TweenService")
@@ -87,10 +87,9 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LP:GetMouse()
 
 -- ============================================================
---  [2] COLORS
+--  [2] COLORS (Clean Blue Theme)
 -- ============================================================
 local C = {
     bg = Color3.fromRGB(15, 18, 28),
@@ -106,214 +105,100 @@ local C = {
 }
 
 -- ============================================================
---  [3] SILENT AIM SETTINGS (Casanova Style)
+--  [3] SIZES
 -- ============================================================
-local SilentAim = {
-    Enabled = true,
-    ToggleKey = "Q",
-    TeamCheck = false,
-    VisibleCheck = false,
-    TargetPart = "HumanoidRootPart",
-    SilentAimMethod = "FindPartOnRay",
-    FOVRadius = 130,
-    FOVVisible = false,
-    ShowTarget = false,
-    HitChance = 100,
-    MouseHitPrediction = false,
-    MouseHitPredictionAmount = 0.165,
+local SIZES = {
+    {name="Mini", w=380, h=340},
+    {name="Normal", w=500, h=430},
+    {name="Large", w=620, h=520},
+    {name="Extra", w=740, h=610},
 }
-
--- Drawing objects
-local fov_circle = Drawing.new("Circle")
-fov_circle.Thickness = 1
-fov_circle.NumSides = 100
-fov_circle.Radius = SilentAim.FOVRadius
-fov_circle.Filled = false
-fov_circle.Visible = false
-fov_circle.Color = Color3.fromRGB(0, 180, 255)
-
-local target_box = Drawing.new("Square")
-target_box.Visible = false
-target_box.Thickness = 2
-target_box.Color = Color3.fromRGB(0, 255, 100)
-target_box.Size = Vector2.new(30, 30)
-target_box.Filled = false
-
--- Helper functions
-local function GetMousePosition()
-    return UserInputService:GetMouseLocation()
-end
-
-local function WorldToViewport(point)
-    local vec, onScreen = Camera:WorldToViewportPoint(point)
-    return Vector2.new(vec.X, vec.Y), onScreen
-end
-
-local function IsPlayerVisible(player)
-    local char = player.Character
-    local localChar = LP.Character
-    if not char or not localChar then return false end
-    
-    local targetPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-    if not targetPart then return false end
-    
-    local origin = Camera.CFrame.Position
-    local direction = (targetPart.Position - origin).Unit * 1000
-    local ray = Ray.new(origin, direction)
-    
-    local hit, pos = workspace:FindPartOnRayWithIgnoreList(ray, {localChar, char})
-    return hit == nil or hit:IsDescendantOf(char)
-end
-
-local function GetClosestTarget()
-    local closest = nil
-    local closestDist = SilentAim.FOVRadius
-    local mousePos = GetMousePosition()
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LP then continue end
-        if SilentAim.TeamCheck and player.Team == LP.Team then continue end
-        
-        local char = player.Character
-        if not char then continue end
-        
-        local hum = char:FindFirstChild("Humanoid")
-        if not hum or hum.Health <= 0 then continue end
-        
-        if SilentAim.VisibleCheck and not IsPlayerVisible(player) then continue end
-        
-        local targetPart = nil
-        if SilentAim.TargetPart == "Head" then
-            targetPart = char:FindFirstChild("Head")
-        elseif SilentAim.TargetPart == "Random" then
-            local parts = {"Head", "HumanoidRootPart"}
-            targetPart = char[parts[math.random(1, #parts)]]
-        else
-            targetPart = char:FindFirstChild("HumanoidRootPart")
-        end
-        
-        if not targetPart then continue end
-        
-        local screenPos, onScreen = WorldToViewport(targetPart.Position)
-        if not onScreen then continue end
-        
-        local dist = (mousePos - screenPos).Magnitude
-        if dist < closestDist then
-            closestDist = dist
-            closest = targetPart
-        end
-    end
-    
-    return closest
-end
-
-local function CalculateChance(percentage)
-    return math.random(1, 100) <= percentage
-end
-
--- Hook functions for Silent Aim
-local expectedArgs = {
-    FindPartOnRayWithIgnoreList = {3, {"Instance", "Ray", "table"}},
-    FindPartOnRayWithWhitelist = {3, {"Instance", "Ray", "table"}},
-    FindPartOnRay = {2, {"Instance", "Ray"}},
-    Raycast = {3, {"Instance", "Vector3", "Vector3"}},
-}
-
-local function ValidateArgs(args, method)
-    local req = expectedArgs[method]
-    if not req then return false end
-    if #args < req[1] then return false end
-    return true
-end
-
--- Silent Aim Hook
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-    local method = getnamecallmethod()
-    local args = {...}
-    local self = args[1]
-    
-    if SilentAim.Enabled and self == workspace and not checkcaller() and CalculateChance(SilentAim.HitChance) then
-        local target = GetClosestTarget()
-        
-        if target and (method == SilentAim.SilentAimMethod or 
-           (method == "FindPartOnRay" and SilentAim.SilentAimMethod == "FindPartOnRay") or
-           (method == "Raycast" and SilentAim.SilentAimMethod == "Raycast")) then
-            
-            if ValidateArgs(args, method) then
-                if method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" or method == "FindPartOnRay" then
-                    local ray = args[2]
-                    local origin = ray.Origin
-                    local direction = (target.Position - origin).Unit * 1000
-                    args[2] = Ray.new(origin, direction)
-                    return oldNamecall(unpack(args))
-                elseif method == "Raycast" then
-                    local origin = args[2]
-                    args[3] = (target.Position - origin).Unit * 1000
-                    return oldNamecall(unpack(args))
-                end
-            end
-        end
-    end
-    
-    return oldNamecall(...)
-end))
-
--- Mouse hook for Mouse.Hit/Target method
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, index)
-    if self == Mouse and not checkcaller() and SilentAim.Enabled and SilentAim.SilentAimMethod == "Mouse.Hit/Target" then
-        local target = GetClosestTarget()
-        if target then
-            if index == "Target" then
-                return target
-            elseif index == "Hit" then
-                if SilentAim.MouseHitPrediction and target.Parent:FindFirstChild("HumanoidRootPart") then
-                    local hrp = target.Parent.HumanoidRootPart
-                    return CFrame.new(target.Position + (hrp.Velocity * SilentAim.MouseHitPredictionAmount))
-                end
-                return CFrame.new(target.Position)
-            end
-        end
-    end
-    return oldIndex(self, index)
-end))
-
--- Update FOV circle and target box
-RunService.RenderStepped:Connect(function()
-    if SilentAim.FOVVisible then
-        fov_circle.Visible = true
-        fov_circle.Position = GetMousePosition()
-        fov_circle.Radius = SilentAim.FOVRadius
-    else
-        fov_circle.Visible = false
-    end
-    
-    if SilentAim.ShowTarget and SilentAim.Enabled then
-        local target = GetClosestTarget()
-        if target then
-            local pos, onScreen = WorldToViewport(target.Position)
-            if onScreen then
-                target_box.Visible = true
-                target_box.Position = Vector2.new(pos.X - 15, pos.Y - 15)
-            else
-                target_box.Visible = false
-            end
-        else
-            target_box.Visible = false
-        end
-    else
-        target_box.Visible = false
-    end
-end)
+local currentSizeIdx = 2
 
 -- ============================================================
---  [4] OTHER FEATURES
+--  [4] HELPERS
+-- ============================================================
+local function corner(p, r)
+    local c = Instance.new("UICorner", p)
+    c.CornerRadius = UDim.new(0, r or 8)
+end
+
+local function stroke(p, col, th, tr)
+    local s = Instance.new("UIStroke", p)
+    s.Color = col or C.accent
+    s.Thickness = th or 1
+    s.Transparency = tr or 0.5
+end
+
+local function tw(obj, props, t)
+    TweenService:Create(obj, TweenInfo.new(t or 0.2), props):Play()
+end
+
+local function mkLbl(parent, text, sz, col, bold, xAl, x, y, w, h)
+    local l = Instance.new("TextLabel", parent)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextSize = sz
+    l.Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham
+    l.TextColor3 = col
+    l.TextXAlignment = xAl or Enum.TextXAlignment.Left
+    l.Size = UDim2.new(0, w, 0, h)
+    l.Position = UDim2.new(0, x, 0, y)
+    return l
+end
+
+-- ============================================================
+--  [5] VARIABLES
 -- ============================================================
 -- Fast Attack
 local FastAttackEnabled = false
 local FastAttackRange = 12000
 local FastAttackConn = nil
+
+-- Silent Aim (TRUE SILENT AIM - redirects attacks)
+local SilentAimEnabled = false
+local SilentAimTargetPlayers = true
+local SilentAimTargetNPCs = true
+local SilentAimRadius = 500
+local SilentAimHooked = false
+local OriginalFireServer = {}
+
+-- Movement
+local InfJumpEnabled = false
+local NoClipEnabled = false
+local WalkWater = false
+local SpeedEnabled = false
+local SpeedValue = 16
+
+-- Player TP
+local SelectedPlayer = nil
+local TeleportEnabled = false
+local InstaTpEnabled = false
+local SpectateEnabled = false
+local TeleportConn = nil
+local InstaTpConn = nil
+local SpectateConn = nil
+local ActiveTween = nil
+local YOffset = 0
+local PredictionStr = 0
+local TweenSpeed = {X = 350}
+
+-- ESP
+local ESPEnabled = false
+local ESPBoxes = false
+local ESPNames = false
+local ESPObjects = {}
+local ESPRosaEnabled = false
+
+-- Other
+local FullBright = false
+local GodModeEnabled = false
+local GodModeConns = {}
+local FruitAttack = false
+local FruitAttackConn = nil
+local AutoV4On = false
+
+-- Net
 local RegisterHit = nil
 local RegisterAttack = nil
 
@@ -325,6 +210,94 @@ pcall(function()
     end
 end)
 
+-- ============================================================
+--  [6] TRUE SILENT AIM (Redirects all attacks to nearest target)
+-- ============================================================
+local function GetNearestSilentTarget()
+    local myChar = LP.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil, nil end
+    
+    local nearestTarget = nil
+    local nearestDist = SilentAimRadius
+    local nearestPart = nil
+    
+    if SilentAimTargetPlayers then
+        for _, pl in pairs(Players:GetPlayers()) do
+            if pl ~= LP and pl.Character then
+                local targetHRP = pl.Character:FindFirstChild("HumanoidRootPart")
+                local targetHead = pl.Character:FindFirstChild("Head")
+                if targetHRP then
+                    local dist = (myHRP.Position - targetHRP.Position).Magnitude
+                    if dist < nearestDist then
+                        nearestDist = dist
+                        nearestTarget = pl.Character
+                        nearestPart = targetHead or targetHRP
+                    end
+                end
+            end
+        end
+    end
+    
+    if SilentAimTargetNPCs then
+        local enemies = workspace:FindFirstChild("Enemies")
+        if enemies then
+            for _, npc in pairs(enemies:GetChildren()) do
+                local npcHRP = npc:FindFirstChild("HumanoidRootPart")
+                if npcHRP then
+                    local dist = (myHRP.Position - npcHRP.Position).Magnitude
+                    if dist < nearestDist then
+                        nearestDist = dist
+                        nearestTarget = npc
+                        nearestPart = npc:FindFirstChild("Head") or npcHRP
+                    end
+                end
+            end
+        end
+    end
+    
+    return nearestTarget, nearestPart
+end
+
+-- Hook RegisterAttack dan RegisterHit untuk redirect attack
+local function SetupSilentAim()
+    if SilentAimHooked then return end
+    
+    -- Hook RegisterAttack
+    if RegisterAttack and not OriginalFireServer.RegisterAttack then
+        OriginalFireServer.RegisterAttack = RegisterAttack.FireServer
+        RegisterAttack.FireServer = function(self, ...)
+            if SilentAimEnabled then
+                local target, targetPart = GetNearestSilentTarget()
+                if target and targetPart then
+                    -- Redirect attack to nearest target
+                    return OriginalFireServer.RegisterAttack(self, targetPart)
+                end
+            end
+            return OriginalFireServer.RegisterAttack(self, ...)
+        end
+    end
+    
+    -- Hook RegisterHit
+    if RegisterHit and not OriginalFireServer.RegisterHit then
+        OriginalFireServer.RegisterHit = RegisterHit.FireServer
+        RegisterHit.FireServer = function(self, hitPart, targets)
+            if SilentAimEnabled then
+                local target, targetPart = GetNearestSilentTarget()
+                if target and targetPart then
+                    return OriginalFireServer.RegisterHit(self, targetPart, {{target, targetPart}})
+                end
+            end
+            return OriginalFireServer.RegisterHit(self, hitPart, targets)
+        end
+    end
+    
+    SilentAimHooked = true
+end
+
+-- ============================================================
+--  [7] FAST ATTACK
+-- ============================================================
 local function AttackMultipleTargets(targets)
     pcall(function()
         if not targets or #targets == 0 then return end
@@ -377,13 +350,51 @@ local function StartFastAttack()
     end)
 end
 
--- Movement
-local InfJumpEnabled = false
-local NoClipEnabled = false
-local WalkWater = false
-local SpeedEnabled = false
-local SpeedValue = 16
+-- ============================================================
+--  [8] FRUIT ATTACK
+-- ============================================================
+local function GetNearestPlayer()
+    local nearest, dist = nil, math.huge
+    local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil end
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LP and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (myHRP.Position - v.Character.HumanoidRootPart.Position).Magnitude
+            if d < dist then
+                dist = d
+                nearest = v
+            end
+        end
+    end
+    return nearest
+end
 
+local function StartFruitAttack(toolName, extraArg)
+    if FruitAttackConn then task.cancel(FruitAttackConn) end
+    FruitAttackConn = task.spawn(function()
+        while FruitAttack do
+            task.wait(0.001)
+            local target = GetNearestPlayer()
+            if target and target.Character then
+                local tool = LP.Character:FindFirstChild(toolName)
+                if tool then
+                    local dir = (target.Character.HumanoidRootPart.Position - LP.Character.HumanoidRootPart.Position).Unit
+                    pcall(function()
+                        if extraArg then
+                            tool:WaitForChild("LeftClickRemote"):FireServer(dir, 1, true)
+                        else
+                            tool:WaitForChild("LeftClickRemote"):FireServer(dir, 1)
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================================
+--  [9] MOVEMENT
+-- ============================================================
 RunService.Heartbeat:Connect(function()
     if SpeedEnabled and LP.Character then
         local hum = LP.Character:FindFirstChild("Humanoid")
@@ -434,59 +445,41 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Fruit Attack
-local FruitAttack = false
-local FruitAttackConn = nil
-
-local function GetNearestPlayer()
-    local nearest, dist = nil, math.huge
-    local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return nil end
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LP and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (myHRP.Position - v.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then
-                dist = d
-                nearest = v
-            end
-        end
-    end
-    return nearest
-end
-
-local function StartFruitAttack(toolName, extraArg)
-    if FruitAttackConn then task.cancel(FruitAttackConn) end
-    FruitAttackConn = task.spawn(function()
-        while FruitAttack do
-            task.wait(0.001)
-            local target = GetNearestPlayer()
-            if target and target.Character then
-                local tool = LP.Character:FindFirstChild(toolName)
-                if tool then
-                    local dir = (target.Character.HumanoidRootPart.Position - LP.Character.HumanoidRootPart.Position).Unit
-                    pcall(function()
-                        if extraArg then
-                            tool:WaitForChild("LeftClickRemote"):FireServer(dir, 1, true)
-                        else
-                            tool:WaitForChild("LeftClickRemote"):FireServer(dir, 1)
-                        end
-                    end)
-                end
-            end
+-- ============================================================
+--  [10] PLAYER TP
+-- ============================================================
+local function SetNoCollide()
+    pcall(function()
+        if not LP.Character then return end
+        for _, v in ipairs(LP.Character:GetChildren()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
         end
     end)
 end
 
--- God Mode
-local GodModeEnabled = false
-local GodModeConns = {}
+local function SetCollide()
+    pcall(function()
+        if not LP.Character then return end
+        for _, v in ipairs(LP.Character:GetChildren()) do
+            if v:IsA("BasePart") then v.CanCollide = true end
+        end
+    end)
+end
 
--- ESP
-local ESPEnabled = false
-local ESPBoxes = false
-local ESPNames = false
-local ESPObjects = {}
+local function TweenToPlayer(targetHRP)
+    if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
+    local HRP = LP.Character.HumanoidRootPart
+    local pred = targetHRP.Position + (targetHRP.Velocity * PredictionStr)
+    local tCF = CFrame.new(pred) * CFrame.Angles(0, math.rad(targetHRP.Orientation.Y), 0) * CFrame.new(0, YOffset, 0)
+    local dist = (tCF.Position - HRP.Position).Magnitude
+    if ActiveTween then ActiveTween:Cancel() end
+    ActiveTween = TweenService:Create(HRP, TweenInfo.new(dist / TweenSpeed.X, Enum.EasingStyle.Linear), {CFrame = tCF})
+    ActiveTween:Play()
+end
 
+-- ============================================================
+--  [11] ESP
+-- ============================================================
 local function ClearESP()
     for _, o in pairs(ESPObjects) do
         if o and o.Parent then o:Destroy() end
@@ -533,10 +526,7 @@ local function UpdateESP()
                 local box = Instance.new("Frame", bb2)
                 box.Size = UDim2.new(1, 0, 1, 0)
                 box.BackgroundTransparency = 1
-                local s = Instance.new("UIStroke", box)
-                s.Color = C.accent
-                s.Thickness = 2
-                s.Transparency = 0.3
+                stroke(box, C.accent, 2, 0.3)
                 table.insert(ESPObjects, bb2)
             end
         end
@@ -550,61 +540,51 @@ task.spawn(function()
     end
 end)
 
--- Full Bright
-local FullBright = false
-
--- Auto V4
-local AutoV4On = false
-
--- Player TP
-local SelectedPlayer = nil
-local TeleportEnabled = false
-local InstaTpEnabled = false
-local SpectateEnabled = false
-local TeleportConn = nil
-local InstaTpConn = nil
-local SpectateConn = nil
-local ActiveTween = nil
-
-local function SetNoCollide()
-    pcall(function()
-        if not LP.Character then return end
-        for _, v in ipairs(LP.Character:GetChildren()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
+-- Pink ESP (Drawing)
+local function CreatePinkESP(plr)
+    local tag = Drawing.new("Text")
+    tag.Visible = false
+    tag.Center = true
+    tag.Outline = true
+    tag.Font = 2
+    tag.Size = 13
+    tag.Color = Color3.fromRGB(0, 180, 255)
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if ESPRosaEnabled and plr and plr.Parent and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr ~= LP then
+            local hrp = plr.Character.HumanoidRootPart
+            local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not myHRP then
+                tag.Visible = false
+                return
+            end
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 3, 0))
+            if onScreen then
+                local dist = (myHRP.Position - hrp.Position).Magnitude
+                tag.Position = Vector2.new(pos.X, pos.Y)
+                tag.Text = plr.Name .. " [" .. math.floor(dist) .. "m]"
+                tag.Visible = true
+            else
+                tag.Visible = false
+            end
+        else
+            tag.Visible = false
+            if not plr or not plr.Parent then
+                tag:Remove()
+                conn:Disconnect()
+            end
         end
     end)
 end
 
-local function SetCollide()
-    pcall(function()
-        if not LP.Character then return end
-        for _, v in ipairs(LP.Character:GetChildren()) do
-            if v:IsA("BasePart") then v.CanCollide = true end
-        end
-    end)
-end
-
-local function TweenToPlayer(targetHRP)
-    if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
-    local HRP = LP.Character.HumanoidRootPart
-    local dist = (targetHRP.Position - HRP.Position).Magnitude
-    if ActiveTween then ActiveTween:Cancel() end
-    ActiveTween = TweenService:Create(HRP, TweenInfo.new(dist / 350, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetHRP.Position)})
-    ActiveTween:Play()
-end
+for _, v in pairs(Players:GetPlayers()) do CreatePinkESP(v) end
+Players.PlayerAdded:Connect(CreatePinkESP)
 
 -- ============================================================
---  [5] KEYBINDS
+--  [12] KEYS
 -- ============================================================
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    
-    -- Toggle Silent Aim (Q)
-    if input.KeyCode == Enum.KeyCode[SilentAim.ToggleKey] then
-        SilentAim.Enabled = not SilentAim.Enabled
-    end
-    
-    -- Fast Attack (U)
     if input.KeyCode == Enum.KeyCode.U then
         FastAttackEnabled = not FastAttackEnabled
         if FastAttackEnabled then
@@ -613,8 +593,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
             if FastAttackConn then task.cancel(FastAttackConn) end
         end
     end
-    
-    -- Fly Up (B)
     if input.KeyCode == Enum.KeyCode.B then
         local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -633,10 +611,16 @@ UserInputService.InputBegan:Connect(function(input, gp)
             end
         end
     end
+    if input.KeyCode == Enum.KeyCode.V then
+        SilentAimEnabled = not SilentAimEnabled
+        if SilentAimEnabled then
+            SetupSilentAim()
+        end
+    end
 end)
 
 -- ============================================================
---  [6] GUI
+--  [13] GUI
 -- ============================================================
 local pgui = LP:WaitForChild("PlayerGui")
 if pgui:FindFirstChild("BloxPanel") then pgui.BloxPanel:Destroy() end
@@ -644,49 +628,13 @@ local ScreenGui = Instance.new("ScreenGui", pgui)
 ScreenGui.Name = "BloxPanel"
 ScreenGui.ResetOnSpawn = false
 
-local SIZES = {
-    {name="Mini", w=380, h=340},
-    {name="Normal", w=500, h=430},
-    {name="Large", w=620, h=520},
-    {name="Extra", w=740, h=610},
-}
-local currentSizeIdx = 2
 local S = SIZES[currentSizeIdx]
 local W, H = S.w, S.h
 local HDR_H = 50
 local SB_H = 28
 local SIDE_W = 110
 local BODY_Y = HDR_H + 10
-
--- Helper functions
-local function corner(p, r)
-    local c = Instance.new("UICorner", p)
-    c.CornerRadius = UDim.new(0, r or 8)
-end
-
-local function stroke(p, col, th, tr)
-    local s = Instance.new("UIStroke", p)
-    s.Color = col or C.accent
-    s.Thickness = th or 1
-    s.Transparency = tr or 0.5
-end
-
-local function tw(obj, props, t)
-    TweenService:Create(obj, TweenInfo.new(t or 0.2), props):Play()
-end
-
-local function mkLbl(parent, text, sz, col, bold, xAl, x, y, w, h)
-    local l = Instance.new("TextLabel", parent)
-    l.BackgroundTransparency = 1
-    l.Text = text
-    l.TextSize = sz
-    l.Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham
-    l.TextColor3 = col
-    l.TextXAlignment = xAl or Enum.TextXAlignment.Left
-    l.Size = UDim2.new(0, w, 0, h)
-    l.Position = UDim2.new(0, x, 0, y)
-    return l
-end
+local BODY_H = H - BODY_Y - SB_H
 
 -- MAIN FRAME
 local Main = Instance.new("Frame", ScreenGui)
@@ -1133,7 +1081,7 @@ stroke(ring, C.accent, 1.5, 0.3)
 mkLbl(ring, "⚡", 24, C.accent, false, Enum.TextXAlignment.Center, 0, 0, 55, 55)
 mkLbl(logoCard, "BLOX PANEL", 16, C.accentLight, true, Enum.TextXAlignment.Left, 80, 10, 200, 24)
 mkLbl(logoCard, "by NanaChan", 10, C.textDim, false, Enum.TextXAlignment.Left, 80, 34, 160, 16)
-mkLbl(logoCard, "[Q] Silent Aim  |  [U] Fast Attack  |  [B] Fly Up", 9, C.accent, false, Enum.TextXAlignment.Left, 80, 54, 320, 16)
+mkLbl(logoCard, "[U] Fast Attack  |  [B] Fly Up  |  [V] Silent Aim", 9, C.accent, false, Enum.TextXAlignment.Left, 80, 54, 280, 16)
 
 secLabel("UI SIZE", pgHome, 2)
 
@@ -1180,131 +1128,6 @@ for i, sz in ipairs(SIZES) do
     table.insert(sizeBtns, sb)
 end
 
--- SILENT AIM PAGE (Casanova Style)
-local pgSilentAim = newPage("silentaim")
-
-secLabel("SILENT AIM SETTINGS", pgSilentAim, 1)
-
--- Enabled toggle
-makeToggle("🎯", "Silent Aim [Q]", "Toggle on/off with Q key", pgSilentAim, 2, function(on)
-    SilentAim.Enabled = on
-end)
-
--- Team Check
-makeToggle("👥", "Team Check", "Ignore same team players", pgSilentAim, 3, function(on)
-    SilentAim.TeamCheck = on
-end)
-
--- Visible Check
-makeToggle("👁️", "Visible Check", "Only target visible players", pgSilentAim, 4, function(on)
-    SilentAim.VisibleCheck = on
-end)
-
--- Target Part dropdown
-local targetPartOptions = {"HumanoidRootPart", "Head", "Random"}
-local targetPartDropdown = nil
-local function createTargetPartDropdown()
-    local card = Instance.new("Frame", pgSilentAim)
-    card.Size = UDim2.new(1, 0, 0, 42)
-    card.BackgroundColor3 = C.surface
-    card.BorderSizePixel = 0
-    card.LayoutOrder = 5
-    corner(card, 8)
-    stroke(card, C.accentDark, 1, 0.5)
-    
-    mkLbl(card, "Target Part", 11, C.text, true, Enum.TextXAlignment.Left, 12, 0, 100, 42)
-    
-    local currentLbl = mkLbl(card, SilentAim.TargetPart, 11, C.accent, true, Enum.TextXAlignment.Right, 0, 0, W - SIDE_W - 24, 42)
-    
-    local btn = Instance.new("TextButton", card)
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.BackgroundTransparency = 1
-    btn.Text = ""
-    btn.BorderSizePixel = 0
-    
-    local index = 1
-    btn.MouseButton1Click:Connect(function()
-        index = index % #targetPartOptions + 1
-        local newValue = targetPartOptions[index]
-        SilentAim.TargetPart = newValue
-        currentLbl.Text = newValue
-    end)
-end
-createTargetPartDropdown()
-
--- Silent Aim Method dropdown
-local methodOptions = {"FindPartOnRay", "FindPartOnRayWithIgnoreList", "FindPartOnRayWithWhitelist", "Raycast", "Mouse.Hit/Target"}
-local function createMethodDropdown()
-    local card = Instance.new("Frame", pgSilentAim)
-    card.Size = UDim2.new(1, 0, 0, 42)
-    card.BackgroundColor3 = C.surface
-    card.BorderSizePixel = 0
-    card.LayoutOrder = 6
-    corner(card, 8)
-    stroke(card, C.accentDark, 1, 0.5)
-    
-    mkLbl(card, "Silent Aim Method", 11, C.text, true, Enum.TextXAlignment.Left, 12, 0, 130, 42)
-    
-    local currentLbl = mkLbl(card, SilentAim.SilentAimMethod, 11, C.accent, true, Enum.TextXAlignment.Right, 0, 0, W - SIDE_W - 24, 42)
-    
-    local btn = Instance.new("TextButton", card)
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.BackgroundTransparency = 1
-    btn.Text = ""
-    btn.BorderSizePixel = 0
-    
-    local index = 1
-    for i, v in ipairs(methodOptions) do
-        if v == SilentAim.SilentAimMethod then
-            index = i
-            break
-        end
-    end
-    
-    btn.MouseButton1Click:Connect(function()
-        index = index % #methodOptions + 1
-        local newValue = methodOptions[index]
-        SilentAim.SilentAimMethod = newValue
-        currentLbl.Text = newValue
-    end)
-end
-createMethodDropdown()
-
--- Hit Chance slider
-makeSlider("Hit Chance", 0, 100, SilentAim.HitChance, pgSilentAim, 7, function(v)
-    SilentAim.HitChance = v
-end)
-
-secLabel("FOV SETTINGS", pgSilentAim, 8)
-
--- Show FOV Circle
-makeToggle("🔵", "Show FOV Circle", "Display FOV circle on screen", pgSilentAim, 9, function(on)
-    SilentAim.FOVVisible = on
-end)
-
--- FOV Radius slider
-makeSlider("FOV Radius", 30, 500, SilentAim.FOVRadius, pgSilentAim, 10, function(v)
-    SilentAim.FOVRadius = v
-    fov_circle.Radius = v
-end)
-
--- Show Target
-makeToggle("📦", "Show Target Box", "Display box around target", pgSilentAim, 11, function(on)
-    SilentAim.ShowTarget = on
-end)
-
-secLabel("PREDICTION", pgSilentAim, 12)
-
--- Mouse Prediction
-makeToggle("🔄", "Mouse Hit Prediction", "Predict target movement", pgSilentAim, 13, function(on)
-    SilentAim.MouseHitPrediction = on
-end)
-
--- Prediction Amount slider
-makeSlider("Prediction Amount", 0.165, 1, SilentAim.MouseHitPredictionAmount, pgSilentAim, 14, function(v)
-    SilentAim.MouseHitPredictionAmount = v
-end)
-
 -- COMBAT PAGE
 local pgCombat = newPage("combat")
 
@@ -1313,26 +1136,61 @@ makeToggle("⚡", "Fast Attack [U]", "Range " .. FastAttackRange .. " studs", pg
     FastAttackEnabled = on
     if on then StartFastAttack() else if FastAttackConn then task.cancel(FastAttackConn) end end
 end)
-makeSlider("Fast Attack Range", 0, 12000, FastAttackRange, pgCombat, 3, function(v)
+makeSlider("Fast Attack Range", 0, 12000, 12000, pgCombat, 3, function(v)
     FastAttackRange = v
 end)
 
-secLabel("FRUIT ATTACK", pgCombat, 4)
-makeToggle("🦊", "Fruit Attack - Kitsune", "Auto attack nearest player", pgCombat, 5, function(on)
-    FruitAttack = on
-    if on then StartFruitAttack("Kitsune-Kitsune", true) else if FruitAttackConn then task.cancel(FruitAttackConn) end end
+secLabel("SILENT AIM", pgCombat, 4)
+makeToggle("🎯", "Silent Aim [V]", "Skill otomatis kena ke musuh terdekat", pgCombat, 5, function(on)
+    SilentAimEnabled = on
+    if on then SetupSilentAim() end
 end)
-makeToggle("🦖", "Fruit Attack - T-Rex", "Auto attack nearest player", pgCombat, 6, function(on)
-    FruitAttack = on
-    if on then StartFruitAttack("T-Rex-T-Rex", false) else if FruitAttackConn then task.cancel(FruitAttackConn) end end
+makeToggle("👥", "Target Players", "", pgCombat, 6, function(on)
+    SilentAimTargetPlayers = on
+end)
+makeToggle("👾", "Target NPCs", "", pgCombat, 7, function(on)
+    SilentAimTargetNPCs = on
+end)
+makeSlider("Detection Radius", 50, 1000, 500, pgCombat, 8, function(v)
+    SilentAimRadius = v
 end)
 
-secLabel("MOVEMENT", pgCombat, 7)
-makeToggle("🦘", "Infinite Jump", "", pgCombat, 8, function(on) InfJumpEnabled = on end)
-makeToggle("👻", "No Clip", "", pgCombat, 9, function(on) NoClipEnabled = on end)
-makeToggle("🌊", "Walk on Water", "", pgCombat, 10, function(on) WalkWater = on end)
-makeToggle("🔧", "Custom Speed", "", pgCombat, 11, function(on) SpeedEnabled = on end)
-makeSlider("Walk Speed", 16, 250, SpeedValue, pgCombat, 12, function(v)
+secLabel("FRUIT ATTACK", pgCombat, 9)
+makeToggle("🦊", "Fruit Attack - Kitsune", "Auto attack nearest player", pgCombat, 10, function(on)
+    FruitAttack = on
+    if on then
+        StartFruitAttack("Kitsune-Kitsune", true)
+    else
+        if FruitAttackConn then task.cancel(FruitAttackConn) end
+    end
+end)
+makeToggle("🦖", "Fruit Attack - T-Rex", "Auto attack nearest player", pgCombat, 11, function(on)
+    FruitAttack = on
+    if on then
+        StartFruitAttack("T-Rex-T-Rex", false)
+    else
+        if FruitAttackConn then task.cancel(FruitAttackConn) end
+    end
+end)
+
+secLabel("MOVEMENT", pgCombat, 12)
+makeToggle("🦘", "Infinite Jump", "", pgCombat, 13, function(on)
+    InfJumpEnabled = on
+end)
+makeToggle("👻", "No Clip", "", pgCombat, 14, function(on)
+    NoClipEnabled = on
+end)
+makeToggle("🌊", "Walk on Water", "", pgCombat, 15, function(on)
+    WalkWater = on
+end)
+makeToggle("🔧", "Custom Speed", "Apply custom walk speed", pgCombat, 16, function(on)
+    SpeedEnabled = on
+    if not on and LP.Character then
+        local hum = LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = 16 end
+    end
+end)
+makeSlider("Walk Speed", 16, 250, 16, pgCombat, 17, function(v)
     SpeedValue = v
     if LP.Character and SpeedEnabled then
         local hum = LP.Character:FindFirstChildOfClass("Humanoid")
@@ -1340,10 +1198,12 @@ makeSlider("Walk Speed", 16, 250, SpeedValue, pgCombat, 12, function(v)
     end
 end)
 
-secLabel("GOD MODE", pgCombat, 13)
-makeToggle("🛡️", "God Mode", "Keep health at maximum", pgCombat, 14, function(on)
+secLabel("GOD MODE", pgCombat, 18)
+makeToggle("🛡️", "God Mode", "Keep health at maximum", pgCombat, 19, function(on)
     GodModeEnabled = on
-    for _, c in pairs(GodModeConns) do pcall(function() c:Disconnect() end) end
+    for _, c in pairs(GodModeConns) do
+        pcall(function() c:Disconnect() end)
+    end
     GodModeConns = {}
     if on then
         table.insert(GodModeConns, RunService.Stepped:Connect(function()
@@ -1369,8 +1229,8 @@ makeToggle("🛡️", "God Mode", "Keep health at maximum", pgCombat, 14, functi
     end
 end)
 
-secLabel("AUTOMATION", pgCombat, 15)
-makeToggle("🔮", "Auto V4 Awakening", "", pgCombat, 16, function(on)
+secLabel("AUTOMATION", pgCombat, 20)
+makeToggle("🔮", "Auto V4 Awakening", "Automatically activate V4", pgCombat, 21, function(on)
     AutoV4On = on
     if on then
         task.spawn(function()
@@ -1394,7 +1254,9 @@ secLabel("TARGET PLAYER", pgTP, 1)
 local _, ddRefresh = makeDropdown("Select Player", pgTP, 2, function(name)
     SelectedPlayer = name
 end)
-makeBtn("🔄", "Refresh List", "", pgTP, 3, function() ddRefresh() end)
+makeBtn("🔄", "Refresh List", "Update player list", pgTP, 3, function()
+    ddRefresh()
+end)
 
 secLabel("MOVEMENT", pgTP, 4)
 makeToggle("🌀", "Tween to Player", "Smooth teleport", pgTP, 5, function(on)
@@ -1415,7 +1277,7 @@ makeToggle("🌀", "Tween to Player", "Smooth teleport", pgTP, 5, function(on)
         SetCollide()
     end
 end)
-makeToggle("⚡", "Instant TP", "Instant teleport", pgTP, 6, function(on)
+makeToggle("⚡", "Instant TP", "Instant teleport to target", pgTP, 6, function(on)
     InstaTpEnabled = on
     if on then
         InstaTpConn = RunService.Stepped:Connect(function()
@@ -1423,7 +1285,7 @@ makeToggle("⚡", "Instant TP", "Instant teleport", pgTP, 6, function(on)
                 pcall(function()
                     local t = Players:FindFirstChild(SelectedPlayer)
                     if t and t.Character then
-                        LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
+                        LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, YOffset, 0)
                         LP.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
                     end
                 end)
@@ -1433,7 +1295,7 @@ makeToggle("⚡", "Instant TP", "Instant teleport", pgTP, 6, function(on)
         if InstaTpConn then InstaTpConn:Disconnect() end
     end
 end)
-makeToggle("👁️", "Spectate Player", "", pgTP, 7, function(on)
+makeToggle("👁️", "Spectate Player", "View from target's camera", pgTP, 7, function(on)
     SpectateEnabled = on
     if on then
         SpectateConn = RunService.RenderStepped:Connect(function()
@@ -1454,21 +1316,26 @@ end)
 local pgESP = newPage("esp")
 
 secLabel("VISION", pgESP, 1)
-makeToggle("👁️", "Enable ESP", "", pgESP, 2, function(on)
+makeToggle("👁️", "Enable ESP", "Show ESP on players", pgESP, 2, function(on)
     ESPEnabled = on
     UpdateESP()
 end)
-makeToggle("📛", "Names ESP", "", pgESP, 3, function(on)
+makeToggle("📛", "Names ESP", "Show player names", pgESP, 3, function(on)
     ESPNames = on
     if ESPEnabled then UpdateESP() end
 end)
-makeToggle("📦", "Boxes ESP", "", pgESP, 4, function(on)
+makeToggle("📦", "Boxes ESP", "Show boxes around players", pgESP, 4, function(on)
     ESPBoxes = on
     if ESPEnabled then UpdateESP() end
+end)
+makeToggle("🔵", "Distance ESP", "Show names with distance", pgESP, 5, function(on)
+    ESPRosaEnabled = on
 end)
 
 -- LOCATIONS PAGE
 local pgLoc = newPage("locations")
+
+secLabel("SEA 3", pgLoc, 1)
 
 local function makeTpBtn(icon, name, coords, parent, lo, cb)
     local btn = Instance.new("TextButton", parent)
@@ -1504,19 +1371,22 @@ local function makeTpBtn(icon, name, coords, parent, lo, cb)
     return btn
 end
 
-secLabel("SEA 3", pgLoc, 1)
 makeTpBtn("⚓", "Teleport to Ship", "-6500, 129, -123", pgLoc, 2, function()
-    if LP.Character then LP.Character.HumanoidRootPart.CFrame = CFrame.new(-6500, 129, -123) end
+    if LP.Character then
+        LP.Character.HumanoidRootPart.CFrame = CFrame.new(-6500, 129, -123)
+    end
 end)
 makeTpBtn("🌀", "Teleport to Empty Rivals", "-11997, 332, -8837", pgLoc, 3, function()
-    if LP.Character then LP.Character.HumanoidRootPart.CFrame = CFrame.new(-11997, 332, -8837) end
+    if LP.Character then
+        LP.Character.HumanoidRootPart.CFrame = CFrame.new(-11997, 332, -8837)
+    end
 end)
 
 secLabel("UTILITIES", pgLoc, 4)
-makeBtn("🛸", "PB Fly", "Flight system", pgLoc, 5, function()
+makeBtn("🛸", "PB Fly", "Activate flight system", pgLoc, 5, function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))()
 end)
-makeBtn("🚫", "Anti-AFK", "", pgLoc, 6, function()
+makeBtn("🚫", "Anti-AFK", "Prevent being kicked", pgLoc, 6, function()
     local vu = game:GetService("VirtualUser")
     LP.Idled:Connect(function()
         vu:Button2Down(Vector2.new(0, 0), Camera.CFrame)
@@ -1529,7 +1399,7 @@ end)
 local pgMisc = newPage("misc")
 
 secLabel("VISUAL", pgMisc, 1)
-makeToggle("☀️", "Full Bright", "", pgMisc, 2, function(on)
+makeToggle("☀️", "Full Bright", "Maximum lighting", pgMisc, 2, function(on)
     FullBright = on
     if not on then
         game.Lighting.Ambient = Color3.fromRGB(0, 0, 0)
@@ -1541,7 +1411,7 @@ makeToggle("☀️", "Full Bright", "", pgMisc, 2, function(on)
         game.Lighting.FogEnd = 9e9
     end
 end)
-makeToggle("👻", "Invisible Mode", "", pgMisc, 3, function(on)
+makeToggle("👻", "Invisible Mode", "Make character invisible", pgMisc, 3, function(on)
     if LP.Character then
         for _, part in pairs(LP.Character:GetDescendants()) do
             if part:IsA("BasePart") or part:IsA("Decal") then
@@ -1567,7 +1437,6 @@ stroke(creditCard, C.accent, 1, 0.4)
 mkLbl(creditCard, "⭐ CREDITS ⭐", 16, C.accentLight, true, Enum.TextXAlignment.Center, 0, 15, W - SIDE_W - 20, 24)
 mkLbl(creditCard, "Script by NanaChan", 12, C.text, false, Enum.TextXAlignment.Center, 0, 50, W - SIDE_W - 20, 20)
 mkLbl(creditCard, "Telegram: t.me/nanaanasyalala", 12, C.accent, false, Enum.TextXAlignment.Center, 0, 80, W - SIDE_W - 20, 20)
-mkLbl(creditCard, "Silent Aim by casanova", 10, C.textDim, false, Enum.TextXAlignment.Center, 0, 110, W - SIDE_W - 20, 18)
 
 local noteFrame = Instance.new("Frame", pgCredits)
 noteFrame.Size = UDim2.new(1, 0, 0, 80)
@@ -1638,8 +1507,6 @@ end
 
 addSideSection("MAIN")
 addSideBtn("🏠", "Home", "home")
-addSideSection("AIM")
-addSideBtn("🎯", "Silent Aim", "silentaim")
 addSideSection("GAMEPLAY")
 addSideBtn("⚔️", "Combat", "combat")
 addSideBtn("🎯", "Teleport", "tp")
@@ -1674,7 +1541,7 @@ corner(dot, 3)
 mkLbl(SB, "Ready", 9, C.textDim, false, Enum.TextXAlignment.Left, 24, 0, 50, SB_H)
 mkLbl(SB, "|", 9, C.accentDark, false, Enum.TextXAlignment.Left, 74, 0, 10, SB_H)
 
-local sbSilent = mkLbl(SB, "SILENT: ON", 9, C.accent, true, Enum.TextXAlignment.Left, 86, 0, 80, SB_H)
+local sbSilent = mkLbl(SB, "SILENT: OFF", 9, C.textDim, true, Enum.TextXAlignment.Left, 86, 0, 80, SB_H)
 local sbFast = mkLbl(SB, "FAST: OFF", 9, C.textDim, true, Enum.TextXAlignment.Left, 166, 0, 70, SB_H)
 
 mkLbl(SB, "NanaChan", 9, C.textDim, false, Enum.TextXAlignment.Right, 0, 0, W - 10, SB_H)
@@ -1682,8 +1549,8 @@ mkLbl(SB, "NanaChan", 9, C.textDim, false, Enum.TextXAlignment.Right, 0, 0, W - 
 task.spawn(function()
     while true do
         task.wait(0.3)
-        sbSilent.Text = SilentAim.Enabled and "SILENT: ON" or "SILENT: OFF"
-        sbSilent.TextColor3 = SilentAim.Enabled and C.accent or C.textDim
+        sbSilent.Text = SilentAimEnabled and "SILENT: ON" or "SILENT: OFF"
+        sbSilent.TextColor3 = SilentAimEnabled and C.accent or C.textDim
         sbFast.Text = FastAttackEnabled and "FAST: ON" or "FAST: OFF"
         sbFast.TextColor3 = FastAttackEnabled and C.accent or C.textDim
     end
@@ -1764,3 +1631,4 @@ end)
 --  INIT
 -- ============================================================
 showPage("home")
+SetupSilentAim()
